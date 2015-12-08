@@ -327,6 +327,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.threadly</groupId>
+            <artifactId>threadly</artifactId>
+            <version>4.4.1</version>
+            <optional>false</optional>
+        </dependency>
+        <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
             <version>${jna.version}</version>

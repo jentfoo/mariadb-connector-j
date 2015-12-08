@@ -84,6 +84,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
      * Connect to database.
      * @throws QueryException if connection is on error.
      */
+    @Override
     public void initializeConnection() throws QueryException {
         this.currentProtocol = null;
 //        log.trace("launching initial loop");
@@ -96,6 +97,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
      * Before executing query, reconnect if connection is closed, and autoReconnect option is set.
      * @throws QueryException if connection has been explicitly closed.
      */
+    @Override
     public void preExecute() throws QueryException {
         //if connection is closed or failed on slave
         if (this.currentProtocol != null && this.currentProtocol.isClosed()) {
@@ -111,6 +113,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
         }
     }
 
+    @Override
     public boolean shouldReconnect() {
         return isMasterHostFail();
     }
@@ -122,16 +125,8 @@ public class MastersFailoverListener extends AbstractMastersListener {
             setExplicitClosed(true);
             try {
                 //closing first additional thread if running to avoid connection creation before closing
-                if (scheduledFailover != null) {
-                    scheduledFailover.cancel(true);
-                    isLooping.set(false);
-                }
-                executorService.shutdownNow();
-                try {
-                    executorService.awaitTermination(15L, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    //executorService interrupted
-                }
+                stopFailover();
+                shutdownScheduler();
 
                 //closing connection
                 if (currentProtocol != null && this.currentProtocol.isConnected()) {
@@ -232,6 +227,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
      * @param mustBeReadOnly is read-only flag
      * @throws QueryException if a connection error occur
      */
+    @Override
     public void switchReadOnlyConnection(Boolean mustBeReadOnly) throws QueryException {
         if (urlParser.getOptions().assureReadOnly && currentReadOnlyAsked.compareAndSet(!mustBeReadOnly, mustBeReadOnly)) {
             setSessionReadOnly(mustBeReadOnly, currentProtocol);
@@ -316,6 +312,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
     }
 
 
+    @Override
     public void reconnect() throws QueryException {
         reconnectFailedConnection(new SearchFilter(true, false));
     }

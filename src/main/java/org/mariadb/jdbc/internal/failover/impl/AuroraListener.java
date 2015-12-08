@@ -83,10 +83,7 @@ public class AuroraListener extends MastersSlavesListener {
 
     @Override
     public void initializeConnection() throws QueryException {
-        if (urlParser.getOptions().validConnectionTimeout != 0) {
-            scheduledPing = executorService.scheduleWithFixedDelay(new PingLoop(this), urlParser.getOptions().validConnectionTimeout,
-                    urlParser.getOptions().validConnectionTimeout, TimeUnit.SECONDS);
-        }
+        startPingLoop();
         try {
             reconnectFailedConnection(new SearchFilter(true, true, true));
         } catch (QueryException e) {
