@@ -115,6 +115,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      *                               this method is called on a closed  <code>PreparedStatement</code> or the SQL
      *                               statement does not return a <code>ResultSet</code> object
      */
+    @Override
     public ResultSet executeQuery() throws SQLException {
         return executeQuery(query);
     }
@@ -144,6 +145,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      * @see java.sql.Statement#getUpdateCount
      * @see java.sql.Statement#getMoreResults
      */
+    @Override
     public boolean execute() throws SQLException {
         return execute(query);
     }
@@ -159,6 +161,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      *                               <code>PreparedStatement</code> or the SQL statement returns a
      *                               <code>ResultSet</code> object
      */
+    @Override
     public int executeUpdate() throws SQLException {
         return executeUpdate(query);
     }
@@ -174,6 +177,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      * @see java.sql.Statement#addBatch
      * @since 1.2
      */
+    @Override
     public void addBatch() throws SQLException {
         checkBatchFields();
         batchQueries.add(query.cloneQuery());
@@ -224,6 +228,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      * @throws java.sql.SQLFeatureNotSupportedException if the JDBC driver does not support this method
      * @since 1.2
      */
+    @Override
     public ResultSetMetaData getMetaData() throws SQLException {
         checkClose();
         ResultSet rs = getResultSet();
@@ -240,6 +245,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
     }
 
 
+    @Override
     protected void setParameter(final int parameterIndex, final ParameterHolder holder) throws SQLException {
         query.setParameter(parameterIndex - 1, holder);
         parametersCleared = false;
@@ -256,6 +262,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      * @see java.sql.ParameterMetaData
      * @since 1.4
      */
+    @Override
     public ParameterMetaData getParameterMetaData() throws SQLException {
         checkClose();
         if (parameterMetaData == null) {
@@ -274,6 +281,7 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
      * useful to immediately release the resources used by the current parameter values; this can be done by calling the
      * method <code>clearParameters</code>.
      */
+    @Override
     public void clearParameters() {
         query.clearParameters();
         parametersCleared = true;
@@ -286,12 +294,13 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
         isClosed();
         super.close();
 
-        if (connection == null || connection.pooledConnection == null
-                || connection.pooledConnection.statementEventListeners.isEmpty()) {
+        if (connection == null || connection.pooledConnection == null) {
             return;
         }
+        // TODO - should we be firing off listeners here?
     }
 
+    @Override
     public String toString() {
         return query.toString();
     }
