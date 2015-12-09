@@ -78,9 +78,7 @@ import java.util.concurrent.locks.LockSupport;
 
 public abstract class AbstractMastersListener implements Listener {
     private static PrioritySchedulerService getSchedulerForNewListener() {
-        schedulerSizeChangeExecutor.execute(() -> {
-            parentScheduler.setPoolSize(parentScheduler.getMaxPoolSize() + 2);
-        });
+        schedulerSizeChangeExecutor.execute(increasePoolSize);
         // TODO - if desired we could limit this scheduler so no single listener could dominate the pool
         return parentScheduler;
     }
@@ -93,7 +91,19 @@ public abstract class AbstractMastersListener implements Listener {
             new PriorityScheduler(2, TaskPriority.High, 500,
                                   new ConfigurableThreadFactory("mariaDb-", true));
     // single threaded to adjust parentScheduler pool size without check then act race condition
-    protected static final Executor schedulerSizeChangeExecutor = new ExecutorLimiter(parentScheduler, 1);
+    private static final Executor schedulerSizeChangeExecutor = new ExecutorLimiter(parentScheduler, 1);
+    private static final Runnable increasePoolSize = new Runnable() {
+        @Override
+        public void run() {
+            parentScheduler.setPoolSize(parentScheduler.getMaxPoolSize() + 2);
+        }
+    };
+    private static final Runnable decreasePoolSize = new Runnable() {
+        @Override
+        public void run() {
+            parentScheduler.setPoolSize(Math.min(2, parentScheduler.getMaxPoolSize() - 2));
+        }
+    };
     /* =========================== Failover variables ========================================= */
     public final UrlParser urlParser;
     protected final PrioritySchedulerService scheduler = getSchedulerForNewListener();
@@ -116,10 +126,7 @@ public abstract class AbstractMastersListener implements Listener {
 
     @Override
     protected void finalize() throws Throwable {
-        schedulerSizeChangeExecutor.execute(() -> {
-            // allow pool to shrink now that there are less connections
-            parentScheduler.setPoolSize(Math.min(2, parentScheduler.getMaxPoolSize() - 2));
-        });
+        schedulerSizeChangeExecutor.execute(decreasePoolSize);
         super.finalize();
     }
 
