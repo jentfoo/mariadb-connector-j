@@ -65,10 +65,9 @@ import org.threadly.util.Clock;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -80,7 +79,7 @@ public abstract class AbstractMastersListener implements Listener {
     /**
      * List the recent failedConnection.
      */
-    protected static Map<HostAddress, Long> blacklist = new HashMap<>();
+    protected static ConcurrentMap<HostAddress, Long> blacklist = new ConcurrentHashMap<>();
     /* =========================== Failover variables ========================================= */
     public final UrlParser urlParser;
     protected final PriorityScheduler scheduler =
@@ -158,12 +157,13 @@ public abstract class AbstractMastersListener implements Listener {
      * Permit to remove Host to blacklist after loadBalanceBlacklistTimeout seconds.
      */
     public void resetOldsBlackListHosts() {
-        long currentTime = Clock.lastKnownForwardProgressingMillis();
-        Set<HostAddress> currentBlackListkeys = new HashSet<HostAddress>(blacklist.keySet());
-        for (HostAddress blackListHost : currentBlackListkeys) {
-            if (blacklist.get(blackListHost) < currentTime - urlParser.getOptions().loadBalanceBlacklistTimeout * 1000) {
+        long expireTime = Clock.lastKnownForwardProgressingMillis() -
+                (urlParser.getOptions().loadBalanceBlacklistTimeout * 1000);
+        for (Map.Entry<HostAddress, Long> blEntry : blacklist.entrySet()) {
+            long entryTime = blEntry.getValue();
+            if (entryTime < expireTime) {
+                blacklist.remove(blEntry.getKey(), entryTime);
 //                if (log.isTraceEnabled()) log.trace("host " + blackListHost+" remove of blacklist");
-                blacklist.remove(blackListHost);
             }
         }
     }
