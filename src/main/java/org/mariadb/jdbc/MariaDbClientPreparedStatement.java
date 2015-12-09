@@ -293,11 +293,6 @@ public class MariaDbClientPreparedStatement extends AbstractMariaDbPrepareStatem
     public void close() throws SQLException {
         isClosed();
         super.close();
-
-        if (connection == null || connection.pooledConnection == null) {
-            return;
-        }
-        // TODO - should we be firing off listeners here?
     }
 
     @Override
