@@ -185,6 +185,7 @@ public abstract class AbstractMastersListener implements Listener {
                 // failed removing the task (and may end up running forever).
                 // if we attempt to schedule again before this removal is complete, that's okay
                 // because remove will only remove the first instance, so the next addition will be fine
+                Thread.yield();
             }
         }
     }
