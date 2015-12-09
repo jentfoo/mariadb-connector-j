@@ -179,8 +179,13 @@ public abstract class AbstractMastersListener implements Listener {
 
     protected void stopFailover() {
         if (isLooping.get() && isLooping.compareAndSet(true, false)) {
-            // TODO - there could be a race condition here, does it matter?
-            scheduler.remove(failLoopRunner);
+            while (! scheduler.remove(failLoopRunner)) {
+                // spin and keep retrying to remove, it is possible that isLooping was transitioned
+                // to true, but the actual schedule has not been invoked yet, and thus we would have
+                // failed removing the task (and may end up running forever).
+                // if we attempt to schedule again before this removal is complete, that's okay
+                // because remove will only remove the first instance, so the next addition will be fine
+            }
         }
     }
 
