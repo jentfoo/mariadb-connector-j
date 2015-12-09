@@ -227,7 +227,8 @@ public class MastersFailoverListener extends AbstractMastersListener {
      */
     @Override
     public void switchReadOnlyConnection(Boolean mustBeReadOnly) throws QueryException {
-        if (urlParser.getOptions().assureReadOnly && currentReadOnlyAsked.compareAndSet(!mustBeReadOnly, mustBeReadOnly)) {
+        if (urlParser.getOptions().assureReadOnly && currentReadOnlyAsked.get() == ! mustBeReadOnly
+                && currentReadOnlyAsked.compareAndSet(!mustBeReadOnly, mustBeReadOnly)) {
             setSessionReadOnly(mustBeReadOnly, currentProtocol);
         }
     }
