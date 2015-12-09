@@ -150,7 +150,7 @@ public abstract class AbstractMastersListener implements Listener {
      */
     public void addToBlacklist(HostAddress hostAddress) {
         if (hostAddress != null && !explicitClosed) {
-            blacklist.put(hostAddress, System.currentTimeMillis());
+            blacklist.put(hostAddress, Clock.accurateForwardProgressingMillis());
         }
     }
 
@@ -158,7 +158,7 @@ public abstract class AbstractMastersListener implements Listener {
      * Permit to remove Host to blacklist after loadBalanceBlacklistTimeout seconds.
      */
     public void resetOldsBlackListHosts() {
-        long currentTime = System.currentTimeMillis();
+        long currentTime = Clock.lastKnownForwardProgressingMillis();
         Set<HostAddress> currentBlackListkeys = new HashSet<HostAddress>(blacklist.keySet());
         for (HostAddress blackListHost : currentBlackListkeys) {
             if (blacklist.get(blackListHost) < currentTime - urlParser.getOptions().loadBalanceBlacklistTimeout * 1000) {
@@ -194,8 +194,8 @@ public abstract class AbstractMastersListener implements Listener {
      * @param now now will launch the loop immediatly, 250ms after if false
      */
     protected void launchFailLoopIfNotlaunched(boolean now) {
-        if (! isLooping.get() && isLooping.compareAndSet(false, true) &&
-                urlParser.getOptions().failoverLoopRetries != 0) {
+        if (! isLooping.get() && isLooping.compareAndSet(false, true)
+                && urlParser.getOptions().failoverLoopRetries != 0) {
             scheduler.scheduleWithFixedDelay(failLoopRunner, now ? 0 : 250, 250);
         }
     }
@@ -203,9 +203,9 @@ public abstract class AbstractMastersListener implements Listener {
     protected void shutdownScheduler() {
         long startTime = Clock.lastKnownForwardProgressingMillis();
         scheduler.shutdownNow();
-        while (scheduler.getCurrentPoolSize() > 0 &&
-               Clock.lastKnownForwardProgressingMillis() - startTime < 15_000 &&
-               ! Thread.currentThread().isInterrupted()) {
+        while (scheduler.getCurrentPoolSize() > 0
+                   && Clock.lastKnownForwardProgressingMillis() - startTime < 15_000
+                   && ! Thread.currentThread().isInterrupted()) {
             // just spin till terminated or time expires
             LockSupport.parkNanos(Clock.NANOS_IN_MILLISECOND);
         }
@@ -225,7 +225,7 @@ public abstract class AbstractMastersListener implements Listener {
      */
     public boolean setMasterHostFail() {
         if (masterHostFail.compareAndSet(false, true)) {
-            masterHostFailTimestamp.set(System.currentTimeMillis());
+            masterHostFailTimestamp.set(Clock.accurateForwardProgressingMillis());
             currentConnectionAttempts.set(0);
             return true;
         }
@@ -295,7 +295,6 @@ public abstract class AbstractMastersListener implements Listener {
      */
     @Override
     public void syncConnection(Protocol from, Protocol to) throws QueryException {
-
         if (from != null) {
             proxy.lock.lock();
 
@@ -314,7 +313,6 @@ public abstract class AbstractMastersListener implements Listener {
             } finally {
                 proxy.lock.unlock();
             }
-
         }
     }
 

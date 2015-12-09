@@ -65,7 +65,6 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class MastersFailoverListener extends AbstractMastersListener {
     private final HaMode mode;
@@ -77,7 +76,6 @@ public class MastersFailoverListener extends AbstractMastersListener {
     public MastersFailoverListener(final UrlParser urlParser) {
         super(urlParser);
         this.mode = urlParser.getHaMode();
-
     }
 
     /**
@@ -90,7 +88,6 @@ public class MastersFailoverListener extends AbstractMastersListener {
 //        log.trace("launching initial loop");
         reconnectFailedConnection(new SearchFilter(true, false));
 //        log.trace("launching initial loop end");
-
     }
 
     /**
@@ -264,7 +261,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
 //        if (log.isDebugEnabled()) {
 //            if (getMasterHostFailTimestamp() > 0) {
 //                log.debug("new primary node [" + currentProtocol.getHostAddress().toString() + "] connection established after "
-// + (System.currentTimeMillis() - getMasterHostFailTimestamp()));
+// + (Clock.accurateForwardProgressingMillis() - getMasterHostFailTimestamp()));
 //            } else log.debug("new primary node [" + currentProtocol.getHostAddress().toString() + "] connection established");
 //        }
 

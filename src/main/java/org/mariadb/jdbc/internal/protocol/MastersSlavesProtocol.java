@@ -55,6 +55,7 @@ import org.mariadb.jdbc.internal.failover.FailoverProxy;
 import org.mariadb.jdbc.internal.failover.impl.MastersSlavesListener;
 import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
 import org.mariadb.jdbc.internal.util.dao.QueryException;
+import org.threadly.util.Clock;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -69,7 +70,6 @@ public class MastersSlavesProtocol extends MasterProtocol {
         super(url, lock);
     }
 
-
     /**
      * loop until found the failed connection.
      *
@@ -81,7 +81,6 @@ public class MastersSlavesProtocol extends MasterProtocol {
      */
     public static void loop(MastersSlavesListener listener, final List<HostAddress> addresses,
                             Map<HostAddress, Long> blacklist, SearchFilter searchFilter) throws QueryException {
-
         MastersSlavesProtocol protocol;
         List<HostAddress> loopAddresses = new LinkedList<>(addresses);
         int maxConnectionTry = listener.getRetriesAllDown();
@@ -123,7 +122,7 @@ public class MastersSlavesProtocol extends MasterProtocol {
 
             } catch (QueryException e) {
                 lastQueryException = e;
-                blacklist.put(protocol.getHostAddress(), System.currentTimeMillis());
+                blacklist.put(protocol.getHostAddress(), Clock.accurateForwardProgressingMillis());
             }
 
             if (!searchFilter.isSearchForMaster() && !searchFilter.isSearchForSlave()) {
@@ -199,6 +198,7 @@ public class MastersSlavesProtocol extends MasterProtocol {
         return newProtocol;
     }
 
+    @Override
     public boolean mustBeMasterConnection() {
         return mustBeMasterConnection;
     }

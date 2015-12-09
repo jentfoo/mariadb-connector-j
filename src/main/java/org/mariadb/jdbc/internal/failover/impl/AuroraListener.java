@@ -63,7 +63,6 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class AuroraListener extends MastersSlavesListener {
     /**
@@ -78,7 +77,6 @@ public class AuroraListener extends MastersSlavesListener {
         super(urlParser);
         masterProtocol = null;
         secondaryProtocol = null;
-        lastQueryTime = System.currentTimeMillis();
     }
 
     @Override

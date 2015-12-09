@@ -56,6 +56,7 @@ import org.mariadb.jdbc.internal.failover.FailoverProxy;
 import org.mariadb.jdbc.internal.util.dao.QueryException;
 import org.mariadb.jdbc.internal.failover.Listener;
 import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
+import org.threadly.util.Clock;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -127,7 +128,7 @@ public class MasterProtocol extends AbstractQueryProtocol {
                 return;
 
             } catch (QueryException e) {
-                blacklist.put(protocol.getHostAddress(), System.currentTimeMillis());
+                blacklist.put(protocol.getHostAddress(), Clock.accurateForwardProgressingMillis());
                 lastQueryException = e;
             }
 

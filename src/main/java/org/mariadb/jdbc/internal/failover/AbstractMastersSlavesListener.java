@@ -53,6 +53,7 @@ import org.mariadb.jdbc.UrlParser;
 import org.mariadb.jdbc.internal.util.dao.QueryException;
 import org.mariadb.jdbc.internal.protocol.Protocol;
 import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
+import org.threadly.util.Clock;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -79,6 +80,7 @@ public abstract class AbstractMastersSlavesListener extends AbstractMastersListe
      * @return HandleErrorResult object to indicate if query has finally been relaunched or exception if not.
      * @throws Throwable if method with parameters doesn't exist
      */
+    @Override
     public HandleErrorResult handleFailover(Method method, Object[] args) throws Throwable {
         if (explicitClosed) {
             throw new QueryException("Connection has been closed !");
@@ -140,7 +142,7 @@ public abstract class AbstractMastersSlavesListener extends AbstractMastersListe
      */
     public boolean setSecondaryHostFail() {
         if (secondaryHostFail.compareAndSet(false, true)) {
-            secondaryHostFailTimestamp.set(System.currentTimeMillis());
+            secondaryHostFailTimestamp.set(Clock.accurateForwardProgressingMillis());
             currentConnectionAttempts.set(0);
             return true;
         }
@@ -151,10 +153,12 @@ public abstract class AbstractMastersSlavesListener extends AbstractMastersListe
         return secondaryHostFail.get();
     }
 
+    @Override
     public boolean hasHostFail() {
         return isMasterHostFail() || isSecondaryHostFail();
     }
 
+    @Override
     public SearchFilter getFilterForFailedHost() {
         return new SearchFilter(isMasterHostFail(), isSecondaryHostFail());
     }
