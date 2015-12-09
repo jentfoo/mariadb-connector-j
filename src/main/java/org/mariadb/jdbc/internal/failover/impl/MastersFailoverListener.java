@@ -123,8 +123,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
             setExplicitClosed(true);
             try {
                 //closing first additional thread if running to avoid connection creation before closing
-                stopFailover();
-                shutdownScheduler();
+                failLoopRunner.blockTillTerminated();
 
                 //closing connection
                 if (currentProtocol != null && this.currentProtocol.isConnected()) {

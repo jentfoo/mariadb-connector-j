@@ -59,7 +59,9 @@ import org.mariadb.jdbc.internal.protocol.Protocol;
 import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
 import org.threadly.concurrent.ConfigurableThreadFactory;
 import org.threadly.concurrent.PriorityScheduler;
+import org.threadly.concurrent.PrioritySchedulerService;
 import org.threadly.concurrent.TaskPriority;
+import org.threadly.concurrent.limiter.ExecutorLimiter;
 import org.threadly.util.Clock;
 
 import java.lang.reflect.InvocationTargetException;
@@ -68,20 +70,33 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 public abstract class AbstractMastersListener implements Listener {
+    private static PrioritySchedulerService getSchedulerForNewListener() {
+        schedulerSizeChangeExecutor.execute(() -> {
+            parentScheduler.setPoolSize(parentScheduler.getMaxPoolSize() + 2);
+        });
+        // TODO - if desired we could limit this scheduler so no single listener could dominate the pool
+        return parentScheduler;
+    }
+
     /**
      * List the recent failedConnection.
      */
     protected static ConcurrentMap<HostAddress, Long> blacklist = new ConcurrentHashMap<>();
-    /* =========================== Failover variables ========================================= */
-    public final UrlParser urlParser;
-    protected final PriorityScheduler scheduler =
+    protected static final PriorityScheduler parentScheduler =
             new PriorityScheduler(2, TaskPriority.High, 500,
                                   new ConfigurableThreadFactory("mariaDb-", true));
+    // single threaded to adjust parentScheduler pool size without check then act race condition
+    protected static final Executor schedulerSizeChangeExecutor = new ExecutorLimiter(parentScheduler, 1);
+    /* =========================== Failover variables ========================================= */
+    public final UrlParser urlParser;
+    protected final PrioritySchedulerService scheduler = getSchedulerForNewListener();
     protected final FailLoop failLoopRunner;
     protected AtomicInteger currentConnectionAttempts = new AtomicInteger();
     protected AtomicBoolean currentReadOnlyAsked = new AtomicBoolean();
@@ -97,6 +112,15 @@ public abstract class AbstractMastersListener implements Listener {
         this.urlParser = urlParser;
         this.failLoopRunner = new FailLoop(this);
         this.masterHostFail.set(true);
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        schedulerSizeChangeExecutor.execute(() -> {
+            // allow pool to shrink now that there are less connections
+            parentScheduler.setPoolSize(Math.min(2, parentScheduler.getMaxPoolSize() - 2));
+        });
+        super.finalize();
     }
 
     @Override
@@ -200,17 +224,6 @@ public abstract class AbstractMastersListener implements Listener {
         if (urlParser.getOptions().failoverLoopRetries > 0
                 && ! isLooping.get() && isLooping.compareAndSet(false, true)) {
             scheduler.scheduleWithFixedDelay(failLoopRunner, now ? 0 : 250, 250);
-        }
-    }
-
-    protected void shutdownScheduler() {
-        long startTime = Clock.lastKnownForwardProgressingMillis();
-        scheduler.shutdownNow();
-        while (scheduler.getCurrentPoolSize() > 0
-                   && Clock.lastKnownForwardProgressingMillis() - startTime < 15_000
-                   && ! Thread.currentThread().isInterrupted()) {
-            // just spin till terminated or time expires
-            LockSupport.parkNanos(Clock.NANOS_IN_MILLISECOND);
         }
     }
 
@@ -381,10 +394,44 @@ public abstract class AbstractMastersListener implements Listener {
     @Override
     public abstract void reconnect() throws QueryException;
 
+    protected abstract static class TerminatableRunnable implements Runnable {
+        private final AtomicInteger runState = new AtomicInteger(0); // -1 = removed, 0 = idle, 1 = active
+
+        protected abstract void unscheduleTask();
+
+        protected abstract void doRun();
+
+        @Override
+        public final void run() {
+            if (! runState.compareAndSet(0, 1)) {
+                // task has somehow either started to run in parallel (should not be possible)
+                // or more likely the task has now been set to terminate
+                return;
+            }
+            try {
+                doRun();
+            } finally {
+                runState.compareAndSet(1, 0);
+            }
+        }
+
+        public void blockTillTerminated() {
+            unscheduleTask();
+            while (! runState.compareAndSet(0, -1)) {
+                // wait and retry
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10));
+                if (Thread.currentThread().isInterrupted()) {
+                    runState.set(-1);
+                    return;
+                }
+            }
+        }
+    }
+
     /**
      * Private class to permit a timer reconnection loop.
      */
-    protected class FailLoop implements Runnable {
+    protected class FailLoop extends TerminatableRunnable {
         Listener listener;
 
         public FailLoop(Listener listener) {
@@ -392,7 +439,7 @@ public abstract class AbstractMastersListener implements Listener {
         }
 
         @Override
-        public void run() {
+        protected void doRun() {
             if (!explicitClosed && hasHostFail()) {
                 if (listener.shouldReconnect()) {
                     try {
@@ -416,6 +463,11 @@ public abstract class AbstractMastersListener implements Listener {
             } else {
                 stopFailover();
             }
+        }
+
+        @Override
+        protected void unscheduleTask() {
+            stopFailover();
         }
     }
 

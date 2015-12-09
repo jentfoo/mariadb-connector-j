@@ -133,11 +133,8 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
                 setExplicitClosed(true);
 
                 //closing first additional thread if running to avoid connection creation before closing
-                scheduler.remove(pingLoopRunner);
-
-                stopFailover();
-
-                shutdownScheduler();
+                pingLoopRunner.blockTillTerminated();
+                failLoopRunner.blockTillTerminated();
 
                 //closing connections
                 if (masterProtocol != null && this.masterProtocol.isConnected()) {
@@ -711,7 +708,7 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
     /**
      * private class to check of currents connections are still ok.
      */
-    protected class PingLoop implements Runnable {
+    protected class PingLoop extends TerminatableRunnable {
         MastersSlavesListener listener;
 
         public PingLoop(MastersSlavesListener listener) {
@@ -719,7 +716,7 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
         }
 
         @Override
-        public void run() {
+        protected void doRun() {
             if (explicitClosed) {
                 scheduler.remove(this);
             } else if (lastQueryTime + (urlParser.getOptions().validConnectionTimeout * 1000) < Clock.lastKnownForwardProgressingMillis()
@@ -743,6 +740,11 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
                     }
                 }
             }
+        }
+
+        @Override
+        protected void unscheduleTask() {
+            scheduler.remove(this);
         }
     }
 }
