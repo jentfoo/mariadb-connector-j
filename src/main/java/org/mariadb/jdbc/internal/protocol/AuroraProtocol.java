@@ -62,7 +62,8 @@ import org.threadly.util.Clock;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -136,7 +137,7 @@ public class AuroraProtocol extends MastersSlavesProtocol {
 //        }
 
         AuroraProtocol protocol;
-        List<HostAddress> loopAddresses = new LinkedList<>(addresses);
+        Deque<HostAddress> loopAddresses = new ArrayDeque<>(addresses);
         int maxConnectionTry = listener.getRetriesAllDown();
         QueryException lastQueryException = null;
 
@@ -149,8 +150,7 @@ public class AuroraProtocol extends MastersSlavesProtocol {
             maxConnectionTry--;
 
             try {
-                protocol.setHostAddress(loopAddresses.get(0));
-                loopAddresses.remove(0);
+                protocol.setHostAddress(loopAddresses.removeFirst());
 
                 protocol.connect();
                 if (listener.isExplicitClosed()) {
@@ -190,10 +190,9 @@ public class AuroraProtocol extends MastersSlavesProtocol {
 
             //loop is set so
             if (loopAddresses.isEmpty() && !searchFilter.isUniqueLoop() && maxConnectionTry > 0) {
-                loopAddresses = new LinkedList<>(addresses);
+                loopAddresses = new ArrayDeque<>(addresses);
                 listener.checkMasterStatus(searchFilter);
             }
-
         }
 
         if (searchFilter.isSearchForMaster() || searchFilter.isSearchForSlave()) {

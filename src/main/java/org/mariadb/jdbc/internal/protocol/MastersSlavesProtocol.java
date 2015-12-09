@@ -57,7 +57,8 @@ import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
 import org.mariadb.jdbc.internal.util.dao.QueryException;
 import org.threadly.util.Clock;
 
-import java.util.LinkedList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -82,7 +83,7 @@ public class MastersSlavesProtocol extends MasterProtocol {
     public static void loop(MastersSlavesListener listener, final List<HostAddress> addresses,
                             Map<HostAddress, Long> blacklist, SearchFilter searchFilter) throws QueryException {
         MastersSlavesProtocol protocol;
-        List<HostAddress> loopAddresses = new LinkedList<>(addresses);
+        Deque<HostAddress> loopAddresses = new ArrayDeque<>(addresses);
         int maxConnectionTry = listener.getRetriesAllDown();
         QueryException lastQueryException = null;
 
@@ -95,8 +96,7 @@ public class MastersSlavesProtocol extends MasterProtocol {
             maxConnectionTry--;
 
             try {
-                protocol.setHostAddress(loopAddresses.get(0));
-                loopAddresses.remove(0);
+                protocol.setHostAddress(loopAddresses.removeFirst());
 
 //                if (log.isDebugEnabled()) log.debug("trying to connect to " + protocol.getHostAddress());
 
@@ -131,7 +131,7 @@ public class MastersSlavesProtocol extends MasterProtocol {
 
             //loop is set so
             if (loopAddresses.isEmpty() && !searchFilter.isUniqueLoop() && maxConnectionTry > 0) {
-                loopAddresses = new LinkedList<>(addresses);
+                loopAddresses = new ArrayDeque<>(addresses);
                 listener.checkMasterStatus(searchFilter);
             }
 

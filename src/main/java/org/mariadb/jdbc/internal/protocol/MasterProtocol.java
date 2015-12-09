@@ -58,11 +58,11 @@ import org.mariadb.jdbc.internal.failover.Listener;
 import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
 import org.threadly.util.Clock;
 
-import java.util.LinkedList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
-
 
 public class MasterProtocol extends AbstractQueryProtocol {
 
@@ -103,7 +103,7 @@ public class MasterProtocol extends AbstractQueryProtocol {
                             SearchFilter searchFilter) throws QueryException {
 
         MasterProtocol protocol;
-        List<HostAddress> loopAddresses = new LinkedList<>(addresses);
+        Deque<HostAddress> loopAddresses = new ArrayDeque<>(addresses);
         int maxConnectionTry = listener.getRetriesAllDown();
         QueryException lastQueryException = null;
         while (!loopAddresses.isEmpty() || (!searchFilter.isUniqueLoop() && maxConnectionTry > 0)) {
@@ -115,8 +115,7 @@ public class MasterProtocol extends AbstractQueryProtocol {
             maxConnectionTry--;
 
             try {
-                protocol.setHostAddress(loopAddresses.get(0));
-                loopAddresses.remove(0);
+                protocol.setHostAddress(loopAddresses.removeFirst());
 
                 protocol.connect();
                 if (listener.isExplicitClosed()) {
@@ -133,7 +132,7 @@ public class MasterProtocol extends AbstractQueryProtocol {
             }
 
             if (loopAddresses.isEmpty() && !searchFilter.isUniqueLoop() && maxConnectionTry > 0) {
-                loopAddresses = new LinkedList<>(addresses);
+                loopAddresses = new ArrayDeque<>(addresses);
             }
         }
         if (lastQueryException != null) {

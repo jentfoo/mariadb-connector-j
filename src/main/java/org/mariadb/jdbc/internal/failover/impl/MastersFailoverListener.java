@@ -62,6 +62,7 @@ import org.mariadb.jdbc.internal.protocol.Protocol;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -198,7 +199,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
             // - random order connected host
             loopAddress.removeAll(blacklist.keySet());
             Collections.shuffle(loopAddress);
-            List<HostAddress> blacklistShuffle = new LinkedList<>(blacklist.keySet());
+            List<HostAddress> blacklistShuffle = new ArrayList<>(blacklist.keySet());
             Collections.shuffle(blacklistShuffle);
             loopAddress.addAll(blacklistShuffle);
         } else {

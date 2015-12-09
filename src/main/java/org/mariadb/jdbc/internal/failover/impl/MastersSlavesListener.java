@@ -62,6 +62,7 @@ import org.threadly.util.Clock;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -70,14 +71,13 @@ import java.util.List;
  * this class handle the operation when multiple hosts.
  */
 public class MastersSlavesListener extends AbstractMastersSlavesListener {
-
     private final PingLoop pingLoopRunner;
     protected Protocol masterProtocol;
     protected Protocol secondaryProtocol;
     private long lastQueryTime = 0;
 
     /**
-     * Initialisation.
+     * Initialization.
      * @param urlParser connection string object.
      */
     public MastersSlavesListener(final UrlParser urlParser) {
@@ -89,7 +89,7 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
     }
 
     protected void startPingLoop() {
-        if (urlParser.getOptions().validConnectionTimeout != 0) {
+        if (urlParser.getOptions().validConnectionTimeout > 0) {
             long frequencyMillis = urlParser.getOptions().validConnectionTimeout * 1000;
             scheduler.scheduleWithFixedDelay(pingLoopRunner, frequencyMillis, frequencyMillis);
         }
@@ -233,7 +233,7 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
         List<HostAddress> loopAddress = new LinkedList<>(urlParser.getHostAddresses());
         loopAddress.removeAll(blacklist.keySet());
         Collections.shuffle(loopAddress);
-        List<HostAddress> blacklistShuffle = new LinkedList<>(blacklist.keySet());
+        List<HostAddress> blacklistShuffle = new ArrayList<>(blacklist.keySet());
         Collections.shuffle(blacklistShuffle);
         loopAddress.addAll(blacklistShuffle);
 
@@ -709,7 +709,7 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
         }
     }
     /**
-     * private class to chech of currents connections are still ok.
+     * private class to check of currents connections are still ok.
      */
     protected class PingLoop implements Runnable {
         MastersSlavesListener listener;
@@ -722,7 +722,7 @@ public class MastersSlavesListener extends AbstractMastersSlavesListener {
         public void run() {
             if (explicitClosed) {
                 scheduler.remove(this);
-            } else if (lastQueryTime + urlParser.getOptions().validConnectionTimeout * 1000 < Clock.lastKnownForwardProgressingMillis()
+            } else if (lastQueryTime + (urlParser.getOptions().validConnectionTimeout * 1000) < Clock.lastKnownForwardProgressingMillis()
                     && !isMasterHostFail()) {
                 boolean masterFail = false;
                 try {

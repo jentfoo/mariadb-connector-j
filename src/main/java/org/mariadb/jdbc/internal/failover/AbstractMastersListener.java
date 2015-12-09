@@ -70,12 +70,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
-
 public abstract class AbstractMastersListener implements Listener {
-
     /**
      * List the recent failedConnection.
      */
@@ -93,7 +90,7 @@ public abstract class AbstractMastersListener implements Listener {
     protected FailoverProxy proxy;
     protected long lastRetry = 0;
     protected boolean explicitClosed = false;
-    private AtomicLong masterHostFailTimestamp = new AtomicLong();
+    private volatile long masterHostFailTimestamp = 0;
     private AtomicBoolean masterHostFail = new AtomicBoolean();
 
     protected AbstractMastersListener(UrlParser urlParser) {
@@ -169,8 +166,8 @@ public abstract class AbstractMastersListener implements Listener {
     }
 
     protected void resetMasterFailoverData() {
-        if (masterHostFail.compareAndSet(true, false)) {
-            masterHostFailTimestamp.set(0);
+        if (masterHostFail.get() && masterHostFail.compareAndSet(true, false)) {
+            masterHostFailTimestamp = 0;
         }
     }
 
@@ -191,11 +188,11 @@ public abstract class AbstractMastersListener implements Listener {
      * launch the scheduler loop every 250 milliseconds, to reconnect a failed connection.
      * Will verify if there is an existing scheduler
      *
-     * @param now now will launch the loop immediatly, 250ms after if false
+     * @param now now will launch the loop immediately, 250ms after if false
      */
     protected void launchFailLoopIfNotlaunched(boolean now) {
-        if (! isLooping.get() && isLooping.compareAndSet(false, true)
-                && urlParser.getOptions().failoverLoopRetries != 0) {
+        if (urlParser.getOptions().failoverLoopRetries > 0
+                && ! isLooping.get() && isLooping.compareAndSet(false, true)) {
             scheduler.scheduleWithFixedDelay(failLoopRunner, now ? 0 : 250, 250);
         }
     }
@@ -216,7 +213,7 @@ public abstract class AbstractMastersListener implements Listener {
     }
 
     public long getMasterHostFailTimestamp() {
-        return masterHostFailTimestamp.get();
+        return masterHostFailTimestamp;
     }
 
     /**
@@ -224,8 +221,8 @@ public abstract class AbstractMastersListener implements Listener {
      * @return true if was already failed
      */
     public boolean setMasterHostFail() {
-        if (masterHostFail.compareAndSet(false, true)) {
-            masterHostFailTimestamp.set(Clock.accurateForwardProgressingMillis());
+        if (! masterHostFail.get() && masterHostFail.compareAndSet(false, true)) {
+            masterHostFailTimestamp = Clock.accurateForwardProgressingMillis();
             currentConnectionAttempts.set(0);
             return true;
         }
@@ -385,7 +382,6 @@ public abstract class AbstractMastersListener implements Listener {
         Listener listener;
 
         public FailLoop(Listener listener) {
-//            log.trace("launched FailLoop");
             this.listener = listener;
         }
 
