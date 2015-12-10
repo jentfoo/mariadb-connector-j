@@ -101,7 +101,7 @@ public abstract class AbstractMastersListener implements Listener {
     private static final Runnable decreasePoolSize = new Runnable() {
         @Override
         public void run() {
-            parentScheduler.setPoolSize(Math.min(2, parentScheduler.getMaxPoolSize() - 2));
+            parentScheduler.setPoolSize(Math.max(2, parentScheduler.getMaxPoolSize() - 2));
         }
     };
     /* =========================== Failover variables ========================================= */
@@ -126,6 +126,8 @@ public abstract class AbstractMastersListener implements Listener {
 
     @Override
     protected void finalize() throws Throwable {
+        // done in finalizer because counterpart increase is done at construction
+        // finalizer issues of when this is run is not important
         schedulerSizeChangeExecutor.execute(decreasePoolSize);
         super.finalize();
     }
@@ -185,8 +187,8 @@ public abstract class AbstractMastersListener implements Listener {
      * Permit to remove Host to blacklist after loadBalanceBlacklistTimeout seconds.
      */
     public void resetOldsBlackListHosts() {
-        long expireTime = Clock.lastKnownForwardProgressingMillis() -
-                (urlParser.getOptions().loadBalanceBlacklistTimeout * 1000);
+        long expireTime = Clock.lastKnownForwardProgressingMillis()
+                - (urlParser.getOptions().loadBalanceBlacklistTimeout * 1000);
         for (Map.Entry<HostAddress, Long> blEntry : blacklist.entrySet()) {
             long entryTime = blEntry.getValue();
             if (entryTime < expireTime) {
