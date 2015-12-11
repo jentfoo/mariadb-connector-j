@@ -62,10 +62,10 @@ import org.mariadb.jdbc.internal.protocol.Protocol;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class MastersFailoverListener extends AbstractMastersListener {
     private final HaMode mode;
@@ -77,25 +77,25 @@ public class MastersFailoverListener extends AbstractMastersListener {
     public MastersFailoverListener(final UrlParser urlParser) {
         super(urlParser);
         this.mode = urlParser.getHaMode();
-
     }
 
     /**
      * Connect to database.
      * @throws QueryException if connection is on error.
      */
+    @Override
     public void initializeConnection() throws QueryException {
         this.currentProtocol = null;
 //        log.trace("launching initial loop");
         reconnectFailedConnection(new SearchFilter(true, false));
 //        log.trace("launching initial loop end");
-
     }
 
     /**
      * Before executing query, reconnect if connection is closed, and autoReconnect option is set.
      * @throws QueryException if connection has been explicitly closed.
      */
+    @Override
     public void preExecute() throws QueryException {
         //if connection is closed or failed on slave
         if (this.currentProtocol != null && this.currentProtocol.isClosed()) {
@@ -111,6 +111,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
         }
     }
 
+    @Override
     public boolean shouldReconnect() {
         return isMasterHostFail();
     }
@@ -122,16 +123,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
             setExplicitClosed(true);
             try {
                 //closing first additional thread if running to avoid connection creation before closing
-                if (scheduledFailover != null) {
-                    scheduledFailover.cancel(true);
-                    isLooping.set(false);
-                }
-                executorService.shutdownNow();
-                try {
-                    executorService.awaitTermination(15L, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    //executorService interrupted
-                }
+                failLoopRunner.blockTillTerminated();
 
                 //closing connection
                 if (currentProtocol != null && this.currentProtocol.isConnected()) {
@@ -206,7 +198,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
             // - random order connected host
             loopAddress.removeAll(blacklist.keySet());
             Collections.shuffle(loopAddress);
-            List<HostAddress> blacklistShuffle = new LinkedList<>(blacklist.keySet());
+            List<HostAddress> blacklistShuffle = new ArrayList<>(blacklist.keySet());
             Collections.shuffle(blacklistShuffle);
             loopAddress.addAll(blacklistShuffle);
         } else {
@@ -232,8 +224,10 @@ public class MastersFailoverListener extends AbstractMastersListener {
      * @param mustBeReadOnly is read-only flag
      * @throws QueryException if a connection error occur
      */
+    @Override
     public void switchReadOnlyConnection(Boolean mustBeReadOnly) throws QueryException {
-        if (urlParser.getOptions().assureReadOnly && currentReadOnlyAsked.compareAndSet(!mustBeReadOnly, mustBeReadOnly)) {
+        if (urlParser.getOptions().assureReadOnly && currentReadOnlyAsked.get() == ! mustBeReadOnly
+                && currentReadOnlyAsked.compareAndSet(!mustBeReadOnly, mustBeReadOnly)) {
             setSessionReadOnly(mustBeReadOnly, currentProtocol);
         }
     }
@@ -268,7 +262,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
 //        if (log.isDebugEnabled()) {
 //            if (getMasterHostFailTimestamp() > 0) {
 //                log.debug("new primary node [" + currentProtocol.getHostAddress().toString() + "] connection established after "
-// + (System.currentTimeMillis() - getMasterHostFailTimestamp()));
+// + (Clock.accurateForwardProgressingMillis() - getMasterHostFailTimestamp()));
 //            } else log.debug("new primary node [" + currentProtocol.getHostAddress().toString() + "] connection established");
 //        }
 
@@ -316,6 +310,7 @@ public class MastersFailoverListener extends AbstractMastersListener {
     }
 
 
+    @Override
     public void reconnect() throws QueryException {
         reconnectFailedConnection(new SearchFilter(true, false));
     }

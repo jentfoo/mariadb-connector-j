@@ -1,20 +1,19 @@
 package org.mariadb.jdbc;
 
 import javax.sql.*;
+
+import org.threadly.concurrent.event.ListenerHelper;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 
 public class MariaDbPooledConnection implements PooledConnection {
 
     MariaDbConnection connection;
-    List<ConnectionEventListener> connectionEventListeners;
-    List<StatementEventListener> statementEventListeners;
+    ListenerHelper<ConnectionEventListener> connectionEventListeners;
+    ListenerHelper<StatementEventListener> statementEventListeners;
 
     /**
      * Constructor.
@@ -23,8 +22,8 @@ public class MariaDbPooledConnection implements PooledConnection {
     public MariaDbPooledConnection(MariaDbConnection connection) {
         this.connection = connection;
         connection.pooledConnection = this;
-        statementEventListeners = new ArrayList<StatementEventListener>();
-        connectionEventListeners = new ArrayList<ConnectionEventListener>();
+        statementEventListeners = ListenerHelper.build(StatementEventListener.class);
+        connectionEventListeners = ListenerHelper.build(ConnectionEventListener.class);
     }
 
     /**
@@ -43,6 +42,7 @@ public class MariaDbPooledConnection implements PooledConnection {
      *                               this method
      * @since 1.4
      */
+    @Override
     public Connection getConnection() throws SQLException {
         return connection;
     }
@@ -60,6 +60,7 @@ public class MariaDbPooledConnection implements PooledConnection {
      *                               this method
      * @since 1.4
      */
+    @Override
     public void close() throws SQLException {
         connection.pooledConnection = null;
         connection.close();
@@ -75,8 +76,9 @@ public class MariaDbPooledConnection implements PooledConnection {
      *                 notified when the connection is closed or has an error
      * @see #removeConnectionEventListener
      */
+    @Override
     public void addConnectionEventListener(ConnectionEventListener listener) {
-        connectionEventListeners.add(listener);
+        connectionEventListeners.addListener(listener);
     }
 
     /**
@@ -91,8 +93,9 @@ public class MariaDbPooledConnection implements PooledConnection {
      *                 a failover
      * @see #addConnectionEventListener
      */
+    @Override
     public void removeConnectionEventListener(ConnectionEventListener listener) {
-        connectionEventListeners.remove(listener);
+        connectionEventListeners.removeListener(listener);
     }
 
     /**
@@ -107,8 +110,9 @@ public class MariaDbPooledConnection implements PooledConnection {
      *                 <br>
      * @since 1.6
      */
+    @Override
     public void addStatementEventListener(StatementEventListener listener) {
-        statementEventListeners.add(listener);
+        statementEventListeners.addListener(listener);
     }
 
     /**
@@ -123,8 +127,9 @@ public class MariaDbPooledConnection implements PooledConnection {
      *                 <br>
      * @since 1.6
      */
+    @Override
     public void removeStatementEventListener(StatementEventListener listener) {
-        statementEventListeners.remove(listener);
+        statementEventListeners.removeListener(listener);
     }
 
     /**
@@ -134,9 +139,7 @@ public class MariaDbPooledConnection implements PooledConnection {
     public void fireStatementClosed(Statement st) {
         if (st instanceof PreparedStatement) {
             StatementEvent event = new StatementEvent(this, (PreparedStatement) st);
-            for (StatementEventListener listener : statementEventListeners) {
-                listener.statementClosed(event);
-            }
+            statementEventListeners.call().statementClosed(event);
         }
     }
 
@@ -148,9 +151,7 @@ public class MariaDbPooledConnection implements PooledConnection {
     public void fireStatementErrorOccured(Statement st, SQLException ex) {
         if (st instanceof PreparedStatement) {
             StatementEvent event = new StatementEvent(this, (PreparedStatement) st, ex);
-            for (StatementEventListener listener : statementEventListeners) {
-                listener.statementErrorOccurred(event);
-            }
+            statementEventListeners.call().statementErrorOccurred(event);
         }
     }
 
@@ -159,10 +160,7 @@ public class MariaDbPooledConnection implements PooledConnection {
      */
     public void fireConnectionClosed() {
         ConnectionEvent event = new ConnectionEvent(this);
-        CopyOnWriteArrayList<ConnectionEventListener> copyListeners = new CopyOnWriteArrayList<ConnectionEventListener>(connectionEventListeners);
-        for (ConnectionEventListener listener : copyListeners) {
-            listener.connectionClosed(event);
-        }
+        connectionEventListeners.call().connectionClosed(event);
     }
 
     /**
@@ -171,8 +169,6 @@ public class MariaDbPooledConnection implements PooledConnection {
      */
     public void fireConnectionErrorOccured(SQLException ex) {
         ConnectionEvent event = new ConnectionEvent(this, ex);
-        for (ConnectionEventListener listener : connectionEventListeners) {
-            listener.connectionErrorOccurred(event);
-        }
+        connectionEventListeners.call().connectionErrorOccurred(event);
     }
 }

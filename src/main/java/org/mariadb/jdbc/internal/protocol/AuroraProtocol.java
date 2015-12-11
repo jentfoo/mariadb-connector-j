@@ -58,10 +58,12 @@ import org.mariadb.jdbc.internal.query.MariaDbQuery;
 import org.mariadb.jdbc.internal.queryresults.SelectQueryResult;
 import org.mariadb.jdbc.internal.failover.impl.AuroraListener;
 import org.mariadb.jdbc.internal.failover.tools.SearchFilter;
+import org.threadly.util.Clock;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -111,7 +113,7 @@ public class AuroraProtocol extends MastersSlavesProtocol {
             }
 
         } catch (QueryException e) {
-            blacklist.put(protocol.getHostAddress(), System.currentTimeMillis());
+            blacklist.put(protocol.getHostAddress(), Clock.accurateForwardProgressingMillis());
 //            if (log.isDebugEnabled())
 //                log.debug("Could not connect to " + protocol.currentHost + " searching for master : " + searchFilter.isSearchForMaster()
 // + " for replica :" + searchFilter.isSearchForSlave() + " error:" + e.getMessage());
@@ -135,7 +137,7 @@ public class AuroraProtocol extends MastersSlavesProtocol {
 //        }
 
         AuroraProtocol protocol;
-        List<HostAddress> loopAddresses = new LinkedList<>(addresses);
+        Deque<HostAddress> loopAddresses = new ArrayDeque<>(addresses);
         int maxConnectionTry = listener.getRetriesAllDown();
         QueryException lastQueryException = null;
 
@@ -148,8 +150,7 @@ public class AuroraProtocol extends MastersSlavesProtocol {
             maxConnectionTry--;
 
             try {
-                protocol.setHostAddress(loopAddresses.get(0));
-                loopAddresses.remove(0);
+                protocol.setHostAddress(loopAddresses.removeFirst());
 
                 protocol.connect();
                 if (listener.isExplicitClosed()) {
@@ -180,7 +181,7 @@ public class AuroraProtocol extends MastersSlavesProtocol {
                 }
             } catch (QueryException e) {
                 lastQueryException = e;
-                blacklist.put(protocol.getHostAddress(), System.currentTimeMillis());
+                blacklist.put(protocol.getHostAddress(), Clock.accurateForwardProgressingMillis());
             }
 
             if (!searchFilter.isSearchForMaster() && !searchFilter.isSearchForSlave()) {
@@ -189,10 +190,9 @@ public class AuroraProtocol extends MastersSlavesProtocol {
 
             //loop is set so
             if (loopAddresses.isEmpty() && !searchFilter.isUniqueLoop() && maxConnectionTry > 0) {
-                loopAddresses = new LinkedList<>(addresses);
+                loopAddresses = new ArrayDeque<>(addresses);
                 listener.checkMasterStatus(searchFilter);
             }
-
         }
 
         if (searchFilter.isSearchForMaster() || searchFilter.isSearchForSlave()) {

@@ -5,6 +5,11 @@
   </a>
 </p>
 
+Fork Differences:
+This for was made to fix several issues that exist in the current branch.  Some of them are race conditions which will prevent apps from being able to run for extended periods of time.  Others are race conditions which may exhibit themselves in unexpected behavior.
+These fixes were used using the threadly project (<a href='https://github.com/threadly/threadly'>https://github.com/threadly/threadly</a>), so equievelent changes will need to be re-made before we can pull request these changes to the parent project.
+This also includes some performance improvements, some of which can be pull requested back, others because of the threadly usage will not be able to be returned to the project.
+
 MariaDB Connector/J is used to connect applications developed in Java to MariaDB and MySQL databases. MariaDB Connector/J is LGPL licensed.
 
 Tracker link <a href="https://mariadb.atlassian.net/projects/CONJ/issues/">https://mariadb.atlassian.net/projects/CONJ/issues/</a>

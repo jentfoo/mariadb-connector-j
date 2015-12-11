@@ -60,10 +60,10 @@ import org.mariadb.jdbc.internal.protocol.Protocol;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class AuroraListener extends MastersSlavesListener {
     /**
@@ -78,15 +78,11 @@ public class AuroraListener extends MastersSlavesListener {
         super(urlParser);
         masterProtocol = null;
         secondaryProtocol = null;
-        lastQueryTime = System.currentTimeMillis();
     }
 
     @Override
     public void initializeConnection() throws QueryException {
-        if (urlParser.getOptions().validConnectionTimeout != 0) {
-            scheduledPing = executorService.scheduleWithFixedDelay(new PingLoop(this), urlParser.getOptions().validConnectionTimeout,
-                    urlParser.getOptions().validConnectionTimeout, TimeUnit.SECONDS);
-        }
+        startPingLoop();
         try {
             reconnectFailedConnection(new SearchFilter(true, true, true));
         } catch (QueryException e) {
@@ -117,7 +113,7 @@ public class AuroraListener extends MastersSlavesListener {
         List<HostAddress> loopAddress = new LinkedList<>(urlParser.getHostAddresses());
         loopAddress.removeAll(blacklist.keySet());
         Collections.shuffle(loopAddress);
-        List<HostAddress> blacklistShuffle = new LinkedList<>(blacklist.keySet());
+        List<HostAddress> blacklistShuffle = new ArrayList<>(blacklist.keySet());
         Collections.shuffle(blacklistShuffle);
         loopAddress.addAll(blacklistShuffle);
 

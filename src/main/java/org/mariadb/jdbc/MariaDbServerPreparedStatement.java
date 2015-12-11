@@ -133,6 +133,7 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
         return protocol.getCalendar();
     }
 
+    @Override
     protected void setParameter(final int parameterIndex, final ParameterHolder holder) throws SQLException {
 
         try {
@@ -155,6 +156,7 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
         queryParameters.add(currentParameterHolder.clone());
     }
 
+    @Override
     public void clearBatch() {
         queryParameters.clear();
     }
@@ -424,7 +426,7 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
         super.close();
         isClosed = true;
 
-        if (connection == null || connection.pooledConnection == null || connection.pooledConnection.statementEventListeners.isEmpty()) {
+        if (connection == null || connection.pooledConnection == null) {
             return;
         }
         connection.pooledConnection.fireStatementClosed(this);
@@ -436,6 +438,7 @@ public class MariaDbServerPreparedStatement extends AbstractMariaDbPrepareStatem
      * Return sql String value.
      * @return String representation
      */
+    @Override
     public String toString() {
         StringBuffer sb = new StringBuffer("sql : '" + sql + "'");
         if (parameterCount > 0) {
