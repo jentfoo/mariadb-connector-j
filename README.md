@@ -1,14 +1,16 @@
+Fork Differences:
+This for was made to fix several issues that exist in the current branch.  Some of them are race conditions which will prevent apps from being able to run for extended periods of time.  Others are race conditions which may exhibit themselves in unexpected behavior.
+These fixes were used using the threadly project (<a href='https://github.com/threadly/threadly'>https://github.com/threadly/threadly</a>), so equievelent changes will need to be re-made before we can pull request these changes to the parent project.
+This also includes some performance improvements, some of which can be pull requested back, others because of the threadly usage will not be able to be returned to the project.
+
+** Update, these differences in spirt have been merged into mariaDb's upstream project.  This branch still is unique in that it has the direct threadly dependencies and inclusions.  Once mariaDb releases 1.3.4 (and if I think to update this fork), we will probably re-merge with their upstream, and just add the threadly improvements (without the need to modify their code).
+
 # mariadb-connector-j
 <p align="center">
   <a href="http://gulpjs.com">
     <img height="129" width="413" src="http://badges.mariadb.org/logo/Mariadb-seal-shaded-browntext.png">
   </a>
 </p>
-
-Fork Differences:
-This for was made to fix several issues that exist in the current branch.  Some of them are race conditions which will prevent apps from being able to run for extended periods of time.  Others are race conditions which may exhibit themselves in unexpected behavior.
-These fixes were used using the threadly project (<a href='https://github.com/threadly/threadly'>https://github.com/threadly/threadly</a>), so equievelent changes will need to be re-made before we can pull request these changes to the parent project.
-This also includes some performance improvements, some of which can be pull requested back, others because of the threadly usage will not be able to be returned to the project.
 
 MariaDB Connector/J is used to connect applications developed in Java to MariaDB and MySQL databases. MariaDB Connector/J is LGPL licensed.
 
